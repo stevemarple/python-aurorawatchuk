@@ -1,0 +1,2 @@
+include *.rst LICENSE \
+	aurorawatchuk/examples/*.py
