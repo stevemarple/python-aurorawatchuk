@@ -1,5 +1,5 @@
 from atomiccreate import smart_open
-import cPickle as pickle
+import pickle
 
 import datetime
 import importlib
@@ -8,10 +8,17 @@ import lxml.etree as etree
 import os
 import requests
 import six
+import sys
 import threading
 import time
 import traceback
-from urlparse import urlsplit
+if sys.version_info[0] >= 3:
+    # noinspection PyCompatibility
+    from urllib.parse import urlsplit
+else:
+    # noinspection PyCompatibility
+    from urlparse import urlsplit
+
 
 __author__ = 'Steve Marple'
 __version__ = '0.0.0'
