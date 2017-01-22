@@ -1,11 +1,11 @@
 from atomiccreate import smart_open
-import pickle
-
+from copy import deepcopy
 import datetime
 import importlib
 import logging
 import lxml.etree as etree
 import os
+import pickle
 import requests
 import six
 import sys
@@ -83,7 +83,7 @@ def _save_to_cache(base_url, name, data, expires):
 
 def _get_data(base_url, lang, name, bg_update=False):
     with _locks[base_url][name]:
-        data = _data[base_url][name]
+        data = deepcopy(_data[base_url][name])
         expires = _expires[base_url][name]
     now = time.time()
     time_left = expires - now
@@ -112,7 +112,7 @@ def _get_data(base_url, lang, name, bg_update=False):
                 _save_to_cache(base_url, name, data, expires)
 
             with _locks[base_url][name]:
-                _data[base_url][name] = data
+                _data[base_url][name] = deepcopy(data)
                 _expires[base_url][name] = expires
             return data
 
