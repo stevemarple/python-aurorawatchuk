@@ -94,7 +94,7 @@ def _get_data(base_url, lang, name, bg_update=False):
                     # Proactively update cache by forcing data to be fetched
                     logger.debug('starting new thread to update %s', name)
                     thread = threading.Thread(target=_get_data,
-                                              args=(base_url, name, lang, True))
+                                              args=(base_url, lang, name, True))
                     thread.start()
                 except (KeyboardInterrupt, SystemExit):
                     raise
