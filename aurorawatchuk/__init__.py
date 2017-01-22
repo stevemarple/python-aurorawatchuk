@@ -37,11 +37,11 @@ class AuroraWatchUK(object):
 
     @property
     def status(self):
-        return _get_data(self._base_url, 'status')['status']
+        return _get_data(self._base_url, self._lang, 'status')['status']
 
     @property
     def status_updated(self):
-        return _get_data(self._base_url, 'status')['updated']
+        return _get_data(self._base_url, self._lang, 'status')['updated']
 
     @property
     def status_expires(self):
@@ -49,7 +49,7 @@ class AuroraWatchUK(object):
 
     @property
     def descriptions(self):
-        return _get_data(self._base_url, 'descriptions')
+        return _get_data(self._base_url, self._lang, 'descriptions')
 
     @property
     def descriptions_expires(self):
@@ -77,18 +77,17 @@ def _save_to_cache(base_url, name, data, expires):
         pickle.dump((data, expires), fh)
 
 
-def _get_data(base_url, name, bg_update=False):
+def _get_data(base_url, lang, name, bg_update=False):
     now = time.time()
     time_left = _expires[base_url][name] - now
     if time_left > 0 and not bg_update:
-        print('TIME LEFT > 0 AND NOT BG_UPDATE')
         if use_file_cache:
             if name in _min_time_left and time_left < _min_time_left[name]:
                 try:
                     # Proactively update by creating a new file cache
                     logger.debug('starting new thread to update %s', name)
                     thread = threading.Thread(target=_get_data,
-                                              args=(base_url, name, True))
+                                              args=(base_url, name, lang, True))
                     thread.start()
                 except (KeyboardInterrupt, SystemExit):
                     raise
@@ -100,10 +99,8 @@ def _get_data(base_url, name, bg_update=False):
                 # Reload from cache, it may have been updated recently
                 _data[name], _expires[name] = _load_from_cache(base_url, name)
     else:
-        print('MUST FETCH')
         try:
-            # data, expires = getattr(self, '_cache_' + name)()
-            data, expires = globals()['_cache_' + name](base_url)
+            data, expires = globals()['_cache_' + name](base_url, lang)
             if use_file_cache:
                 _save_to_cache(base_url, name, data, expires)
 
@@ -122,7 +119,7 @@ def _get_data(base_url, name, bg_update=False):
     return _data[base_url][name]
 
 
-def _cache_status(base_url):
+def _cache_status(base_url, _):
     logger.debug('caching status')
     url = _urls[base_url]['status']
     req = requests.get(url, headers={'user-agent': user_agent})
@@ -146,10 +143,10 @@ def _cache_status(base_url):
     except:
         logger.error('could not parse status')
         _invalidate_cache(base_url, 'status')
-    raise
+        raise
 
 
-def _cache_descriptions(base_url):
+def _cache_descriptions(base_url, lang):
     logger.debug('caching descriptions')
     url = _urls[base_url]['descriptions']
     req = requests.get(url, headers={'user-agent': user_agent})
@@ -164,15 +161,11 @@ def _cache_descriptions(base_url):
         expires = time.mktime(datetime.datetime.strptime(req.headers['Expires'],
                                                          '%a, %d %b %Y %H:%M:%S %Z').utctimetuple())
         d = {}
-        # TO DO: pull out only description and meaning which matches self._lang
         for status_elem in xml_tree.findall('status'):
             status = status_elem.attrib['id']
-            description = {}
-            for desc_elem in status_elem.findall('description'):
-                description[desc_elem.attrib['lang']] = desc_elem.text
-            meaning = {}
-            for meaning_elem in status_elem.findall('meaning'):
-                meaning[meaning_elem.attrib['lang']] = meaning_elem.text
+            # Filter description and meaning based on chosen language
+            description = status_elem.find("description[@lang='{lang}']".format(lang=lang)).text
+            meaning = status_elem.find("meaning[@lang='{lang}']".format(lang=lang)).text
             d[status] = dict(color=status_elem.find('color').text,
                              description=description,
                              meaning=meaning)
@@ -182,7 +175,7 @@ def _cache_descriptions(base_url):
     except:
         logger.error('could not parse status')
         _invalidate_cache(base_url, 'status')
-    raise
+        raise
 
 
 def init(base_url):
@@ -212,6 +205,8 @@ def init(base_url):
                     d, expires = _load_from_cache(base_url, k)
                     _data[base_url][k] = d
                     _expires[base_url][k] = expires
+                except (KeyboardInterrupt, SystemExit):
+                    raise
                 except:
                     _invalidate_cache(base_url, k)
 
@@ -227,4 +222,3 @@ _data = {}
 
 _min_time_left = dict(status=20,
                       descriptions=86400)
-
