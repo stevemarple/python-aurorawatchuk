@@ -31,6 +31,10 @@ class AuroraWatchUK(object):
         self._lang = lang
         init(base_url)
 
+    def _get_expires(self, name):
+        with _locks[self._base_url][name]:
+            return _expires[self._base_url][name]
+
     @property
     def lang(self):
         return self._lang
@@ -45,7 +49,7 @@ class AuroraWatchUK(object):
 
     @property
     def status_expires(self):
-        return _expires[self._base_url]['status']
+        return self._get_expires('status')
 
     @property
     def descriptions(self):
@@ -53,7 +57,7 @@ class AuroraWatchUK(object):
 
     @property
     def descriptions_expires(self):
-        return _expires[self._base_url]['descriptions']
+        return self._get_expires('descriptions')
 
 
 def _get_cache_filename(base_url, name):
@@ -61,7 +65,7 @@ def _get_cache_filename(base_url, name):
 
 
 def _invalidate_cache(base_url, name):
-    logger.debug('invalidating cache for %s %s' % (base_url, name))
+    logger.warning('invalidating cache for %s %s' % (base_url, name))
     if os.path.exists(_cache_files[base_url][name]):
         os.remove(_cache_files[base_url][name])
 
@@ -78,13 +82,16 @@ def _save_to_cache(base_url, name, data, expires):
 
 
 def _get_data(base_url, lang, name, bg_update=False):
+    with _locks[base_url][name]:
+        data = _data[base_url][name]
+        expires = _expires[base_url][name]
     now = time.time()
-    time_left = _expires[base_url][name] - now
+    time_left = expires - now
     if time_left > 0 and not bg_update:
         if use_file_cache:
             if name in _min_time_left and time_left < _min_time_left[name]:
                 try:
-                    # Proactively update by creating a new file cache
+                    # Proactively update cache by forcing data to be fetched
                     logger.debug('starting new thread to update %s', name)
                     thread = threading.Thread(target=_get_data,
                                               args=(base_url, name, lang, True))
@@ -96,15 +103,15 @@ def _get_data(base_url, lang, name, bg_update=False):
                     logger.debug(traceback.format_exc())
                     raise
 
-                # Reload from cache, it may have been updated recently
-                _data[name], _expires[name] = _load_from_cache(base_url, name)
+        return data
+
     else:
         try:
             data, expires = globals()['_cache_' + name](base_url, lang)
             if use_file_cache:
                 _save_to_cache(base_url, name, data, expires)
 
-            if not bg_update:
+            with _locks[base_url][name]:
                 _data[base_url][name] = data
                 _expires[base_url][name] = expires
             return data
@@ -116,7 +123,6 @@ def _get_data(base_url, lang, name, bg_update=False):
             logger.error('could not get AuroraWatch UK status')
             logger.debug(traceback.format_exc())
             raise
-    return _data[base_url][name]
 
 
 def _cache_status(base_url, _):
@@ -181,34 +187,45 @@ def _cache_descriptions(base_url, lang):
 def init(base_url):
     global cache_dir
     global _urls
+    global _cache_files
+    global _locks
+    global _expires
+    global _data
 
-    if use_file_cache:
-        if not cache_dir:
-            appdirs = importlib.import_module('appdirs')
-            cache_dir = appdirs.user_cache_dir(__name__)
+    with _init_lock:
+        if use_file_cache:
+            if not cache_dir:
+                appdirs = importlib.import_module('appdirs')
+                cache_dir = appdirs.user_cache_dir(__name__)
 
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
 
-    if base_url not in _urls:
-        _urls[base_url] = dict(status=base_url + 'status/current-status.xml',
-                               descriptions=base_url + 'status-descriptions.xml')
-        _cache_files[base_url] = {}
-        _expires[base_url] = {}
-        _data[base_url] = {}
-        for k, v in six.iteritems(_urls[base_url]):
-            _expires[base_url][k] = 0
-            _data[base_url][k] = None
-            if use_file_cache:
-                _cache_files[base_url][k] = _get_cache_filename(base_url, k)
-                try:
-                    d, expires = _load_from_cache(base_url, k)
-                    _data[base_url][k] = d
-                    _expires[base_url][k] = expires
-                except (KeyboardInterrupt, SystemExit):
-                    raise
-                except:
-                    _invalidate_cache(base_url, k)
+        if base_url not in _urls:
+            _urls[base_url] = dict(status=base_url + 'status/current-status.xml',
+                                   descriptions=base_url + 'status-descriptions.xml')
+            _cache_files[base_url] = {}
+            _locks[base_url] = {}
+            _expires[base_url] = {}
+            _data[base_url] = {}
+            for k, v in six.iteritems(_urls[base_url]):
+                _locks[base_url][k] = threading.RLock()
+                _expires[base_url][k] = 0
+                _data[base_url][k] = None
+                if use_file_cache:
+                    _cache_files[base_url][k] = _get_cache_filename(base_url, k)
+                    try:
+                        d, expires = _load_from_cache(base_url, k)
+                        with _locks[base_url][k]:
+                            _data[base_url][k] = d
+                            _expires[base_url][k] = expires
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
+                    except:
+                        _invalidate_cache(base_url, k)
+
+
+_init_lock = threading.RLock()
 
 logger = logging.getLogger(__name__)
 user_agent = 'Python AuroraWatch UK module'
@@ -217,6 +234,8 @@ cache_dir = None
 
 _urls = {}
 _cache_files = {}
+
+_locks = {}  # Controls access to _expires and _data
 _expires = {}
 _data = {}
 
