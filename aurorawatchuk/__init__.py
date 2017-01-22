@@ -66,7 +66,7 @@ def _get_cache_filename(base_url, name):
 
 
 def _invalidate_cache(base_url, name):
-    logger.warning('invalidating cache for %s %s' % (base_url, name))
+    logger.warning('invalidating cache for %s (%s)' % (_urls[base_url][name], _cache_files[base_url][name]))
     if os.path.exists(_cache_files[base_url][name]):
         os.remove(_cache_files[base_url][name])
 
