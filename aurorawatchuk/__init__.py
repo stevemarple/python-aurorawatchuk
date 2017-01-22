@@ -1,4 +1,5 @@
 from atomiccreate import smart_open
+from collections import OrderedDict
 from copy import deepcopy
 import datetime
 import importlib
@@ -166,7 +167,7 @@ def _cache_descriptions(base_url, lang):
 
         expires = time.mktime(datetime.datetime.strptime(req.headers['Expires'],
                                                          '%a, %d %b %Y %H:%M:%S %Z').utctimetuple())
-        d = {}
+        d = OrderedDict()
         for status_elem in xml_tree.findall('status'):
             status = status_elem.attrib['id']
             # Filter description and meaning based on chosen language
