@@ -62,7 +62,10 @@ class AuroraWatchUK(object):
 
 
 def _get_cache_filename(base_url, name):
-    return os.path.join(cache_dir, os.path.basename(urlsplit(_urls[base_url][name]).path) + '.pck')
+    # Incorporate protocol and host. Must remove any leading '/' from the HTTP(S) path since that causes
+    # os.path.join to disregrard any previous directory parts.
+    p = urlsplit(_urls[base_url][name])
+    return os.path.join(cache_dir, p.scheme, p.netloc, *split_dirs(p.path.lstrip('/') + '.pck'))
 
 
 def _invalidate_cache(base_url, name):
@@ -224,6 +227,22 @@ def init(base_url):
                         raise
                     except:
                         _invalidate_cache(base_url, k)
+
+
+def split_dirs(path):
+    p = os.path.normpath(path)
+    r = []
+    while True:
+        a, b = os.path.split(p)
+        if a == '':
+            r.insert(0, b)
+            return r
+        elif b == '':
+            r.insert(0, a)
+            return r
+        else:
+            r.insert(0, b)
+            p = a
 
 
 _init_lock = threading.RLock()
