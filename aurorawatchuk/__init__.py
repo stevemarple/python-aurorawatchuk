@@ -92,7 +92,7 @@ def _get_data(base_url, lang, name, bg_update=False):
     now = time.time()
     time_left = expires - now
     if time_left > 0 and not bg_update:
-        if use_file_cache:
+        if use_disk_cache:
             if name in _min_time_left and time_left < _min_time_left[name]:
                 try:
                     # Proactively update cache by forcing data to be fetched
@@ -112,7 +112,7 @@ def _get_data(base_url, lang, name, bg_update=False):
     else:
         try:
             data, expires = globals()['_cache_' + name](base_url, lang)
-            if use_file_cache:
+            if use_disk_cache:
                 _save_to_cache(base_url, name, data, expires)
 
             with _locks[base_url][name]:
@@ -197,7 +197,7 @@ def init(base_url):
     global _data
 
     with _init_lock:
-        if use_file_cache:
+        if use_disk_cache:
             if not cache_dir:
                 appdirs = importlib.import_module('appdirs')
                 cache_dir = appdirs.user_cache_dir(__name__)
@@ -216,7 +216,7 @@ def init(base_url):
                 _locks[base_url][k] = threading.RLock()
                 _expires[base_url][k] = 0
                 _data[base_url][k] = None
-                if use_file_cache:
+                if use_disk_cache:
                     _cache_files[base_url][k] = _get_cache_filename(base_url, k)
                     if os.path.exists(_cache_files[base_url][k]):
                         try:
@@ -252,7 +252,7 @@ _init_lock = threading.RLock()
 
 logger = logging.getLogger(__name__)
 user_agent = 'Python AuroraWatch UK module'
-use_file_cache = True
+use_disk_cache = True
 cache_dir = None
 
 _urls = {}
