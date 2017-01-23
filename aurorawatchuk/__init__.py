@@ -42,15 +42,7 @@ class AuroraWatchUK(object):
 
     @property
     def status(self):
-        return _get_data(self._base_url, self._lang, 'status')['status']
-
-    @property
-    def status_updated(self):
-        return _get_data(self._base_url, self._lang, 'status')['updated']
-
-    @property
-    def status_expires(self):
-        return self._get_expires('status')
+        return _get_data(self._base_url, self._lang, 'status')
 
     @property
     def descriptions(self):
@@ -59,6 +51,30 @@ class AuroraWatchUK(object):
     @property
     def descriptions_expires(self):
         return self._get_expires('descriptions')
+
+
+class Status(object):
+    def __init__(self, expires, level, updated, messages):
+        self._expires = expires
+        self._level = level
+        self._updated = updated
+        self._messages = messages
+
+    @property
+    def expires(self):
+        return self._expires
+
+    @property
+    def level(self):
+        return self._level
+
+    @property
+    def updated(self):
+        return self._updated
+
+    @property
+    def messages(self):
+        return self._messages
 
 
 def _get_cache_filename(base_url, name):
@@ -147,7 +163,12 @@ def _cache_status(base_url, _):
                                                     '%Y-%m-%dT%H:%M:%S+0000'))
         expires = time.mktime(datetime.datetime.strptime(req.headers['Expires'],
                                                          '%a, %d %b %Y %H:%M:%S %Z').utctimetuple())
-        return d, expires
+        r = Status(expires,
+                   site_status.attrib['status_id'],
+                   datetime.datetime.strptime(xml_tree.find('updated').find('datetime').text,
+                                                           '%Y-%m-%dT%H:%M:%S+0000'),
+                   [])
+        return r, expires
     except (KeyboardInterrupt, SystemExit):
         raise
     except:
@@ -171,6 +192,7 @@ def _cache_descriptions(base_url, lang):
         expires = time.mktime(datetime.datetime.strptime(req.headers['Expires'],
                                                          '%a, %d %b %Y %H:%M:%S %Z').utctimetuple())
         d = OrderedDict()
+        d.expires = expires
         for status_elem in xml_tree.findall('status'):
             status = status_elem.attrib['id']
             # Filter description and meaning based on chosen language
