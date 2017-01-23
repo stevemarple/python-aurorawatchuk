@@ -75,13 +75,13 @@ def _invalidate_cache(base_url, name):
 
 
 def _load_from_cache(base_url, name):
-    with open(_cache_files[base_url][name]) as fh:
+    with open(_cache_files[base_url][name], 'rb') as fh:
         return pickle.load(fh)
 
 
 def _save_to_cache(base_url, name, data, expires):
     #  TO DO: needs a lock to be thread safe
-    with smart_open(_cache_files[base_url][name], 'w') as fh:
+    with smart_open(_cache_files[base_url][name], 'wb') as fh:
         pickle.dump((data, expires), fh)
 
 
