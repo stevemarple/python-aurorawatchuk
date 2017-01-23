@@ -218,15 +218,18 @@ def init(base_url):
                 _data[base_url][k] = None
                 if use_file_cache:
                     _cache_files[base_url][k] = _get_cache_filename(base_url, k)
-                    try:
-                        d, expires = _load_from_cache(base_url, k)
-                        with _locks[base_url][k]:
-                            _data[base_url][k] = d
-                            _expires[base_url][k] = expires
-                    except (KeyboardInterrupt, SystemExit):
-                        raise
-                    except:
-                        _invalidate_cache(base_url, k)
+                    if os.path.exists(_cache_files[base_url][k]):
+                        try:
+                            d, expires = _load_from_cache(base_url, k)
+                            with _locks[base_url][k]:
+                                _data[base_url][k] = d
+                                _expires[base_url][k] = expires
+                        except (KeyboardInterrupt, SystemExit):
+                            raise
+                        except:
+                            logger.error('could not read %s', _cache_files[base_url][k])
+                            logger.debug(traceback.format_exc())
+                            _invalidate_cache(base_url, k)
 
 
 def split_dirs(path):
