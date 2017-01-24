@@ -105,17 +105,21 @@ def _get_data(base_url, lang, name, bg_update=False):
     with _locks[base_url][name]:
         data = deepcopy(_data[base_url][name])
         expires = _expires[base_url][name]
+        permit_bg_update = _permit_bg_update[base_url][name]
     now = time.time()
     time_left = expires - now
     if time_left > 0 and not bg_update:
         if use_disk_cache:
-            if name in _min_time_left and time_left < _min_time_left[name]:
+            if name in _min_time_left and time_left < _min_time_left[name] and permit_bg_update:
                 try:
                     # Proactively update cache by forcing data to be fetched
                     logger.debug('starting new thread to update %s', name)
                     thread = threading.Thread(target=_get_data,
                                               args=(base_url, lang, name, True))
                     thread.start()
+                    with _locks[base_url][name]:
+                        # Don't permit any more background updates for this URL
+                        _permit_bg_update[base_url][name] = False
                 except (KeyboardInterrupt, SystemExit):
                     raise
                 except:
@@ -134,6 +138,7 @@ def _get_data(base_url, lang, name, bg_update=False):
             with _locks[base_url][name]:
                 _data[base_url][name] = deepcopy(data)
                 _expires[base_url][name] = expires
+                _permit_bg_update[base_url][name] = True # Re-enable background updates for this URL
             return data
 
         except (KeyboardInterrupt, SystemExit):
@@ -234,10 +239,12 @@ def init(base_url):
             _locks[base_url] = {}
             _expires[base_url] = {}
             _data[base_url] = {}
+            _permit_bg_update[base_url] = {}
             for k, v in six.iteritems(_urls[base_url]):
                 _locks[base_url][k] = threading.RLock()
                 _expires[base_url][k] = 0
                 _data[base_url][k] = None
+                _permit_bg_update[base_url][k] = True #  Permit background updates
                 if use_disk_cache:
                     _cache_files[base_url][k] = _get_cache_filename(base_url, k)
                     if os.path.exists(_cache_files[base_url][k]):
@@ -280,9 +287,11 @@ cache_dir = None
 _urls = {}
 _cache_files = {}
 
-_locks = {}  # Controls access to _expires and _data
-_expires = {}
-_data = {}
+# Each lock controls access to the corresponding _expires, _data and _permit_bg_update nested dictionary values
+_locks = {}
+_expires = {} # Holds expiry times from the HTTP(S) requests
+_data = {} # Holds the Python representation of the XML page
+_permit_bg_update = {} # Flags to indicate if the page can be fetched by a background thread
 
 _min_time_left = dict(status=20,
                       descriptions=86400)
