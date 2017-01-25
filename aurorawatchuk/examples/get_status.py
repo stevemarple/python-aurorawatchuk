@@ -42,11 +42,15 @@ while True:
     now = datetime.datetime.utcnow()
     # Print the current status
     print('{now:%Y-%m-%d %H:%M:%S}'.format(now=now))
-    print('Current status:   level={status.level} updated={status.updated:%Y-%m-%d %H:%M:%S}'
-          .format(status=aw.status))
+    print('Current status:   level={aw.status.level}    updated={aw.status.updated:%Y-%m-%d %H:%M:%S}'
+          .format(aw=aw))
 
     # Print the snapshot taken earlier
-    print('Earlier snapshot: level={status.level} updated={status.updated:%Y-%m-%d %H:%M:%S}'
-          .format(status=aw_ss.status))
+    print('Earlier snapshot: level={aw.status.level}    updated={aw.status.updated:%Y-%m-%d %H:%M:%S}'
+          .format(aw=aw_ss))
+
+    # Print the latest status
+    print('Latest activity:  activity={aw.activity.latest.value:.1f}  updated={aw.activity.updated:%Y-%m-%d %H:%M:%S}'
+          .format(aw=aw))
 
     time.sleep(10)
