@@ -45,6 +45,8 @@ class AuroraWatchUK(object):
         return _get_data(self._base_url, self._lang, 'status')
 
     @property
+    def status_color(self):
+        return self.descriptions[self.status.level]['color']
     def descriptions(self):
         return _get_data(self._base_url, self._lang, 'descriptions')
 
