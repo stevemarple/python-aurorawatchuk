@@ -191,6 +191,12 @@ def _get_data(base_url, lang, name, bg_update=False):
         try:
             data, expires = globals()['_cache_' + name](base_url, lang)
             _save_to_cache(base_url, name, data, expires)
+            if name == 'activity':
+                # This is a superset of the status information so update the cache for that too
+                _save_to_cache(base_url,
+                               'status',
+                               Status(expires, data.latest.level, data.updated, data.messages),
+                               expires)
             return data
 
         except (KeyboardInterrupt, SystemExit):
