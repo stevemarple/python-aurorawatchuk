@@ -49,6 +49,14 @@ class AuroraWatchUK(object):
         return self.descriptions[self.status.level]['color']
 
     @property
+    def status_description(self):
+        return self.descriptions[self.status.level]['description']
+
+    @property
+    def status_meaning(self):
+        return self.descriptions[self.status.level]['meaning']
+
+    @property
     def activity(self):
         return _get_data(self._base_url, self._lang, 'activity')
 
