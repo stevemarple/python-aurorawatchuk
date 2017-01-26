@@ -27,9 +27,15 @@ __license__ = 'PSF'
 
 
 class AuroraWatchUK(object):
-    def __init__(self, base_url='http://aurorawatch-api.lancs.ac.uk/0.2/', lang='en'):
+    def __init__(self,
+                 base_url='http://aurorawatch-api.lancs.ac.uk/0.2/',
+                 lang='en',
+                 raise_=True,
+                 unknown_color='#777777'):
         self._base_url = base_url
         self._lang = lang
+        self._raise = raise_
+        self._unknown_color = unknown_color
         init(base_url)
 
     def _get_expires(self, name):
@@ -45,12 +51,52 @@ class AuroraWatchUK(object):
         return _get_data(self._base_url, self._lang, 'status')
 
     @property
+    def status_level(self):
+        if self._raise:
+            return _get_data(self._base_url, self._lang, 'status').level
+        else:
+            try:
+                return _get_data(self._base_url, self._lang, 'status').level
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except:
+                return 'unknown'
+
+    @property
     def status_color(self):
-        return self.descriptions[self.status.level]['color']
+        if self._raise:
+            return _get_data(self._base_url, self._lang, 'color').level
+        else:
+            try:
+                return _get_data(self._base_url, self._lang, 'color').level
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except:
+                return self._unknown_color
 
     @property
     def status_description(self):
-        return self.descriptions[self.status.level]['description']
+        if self._raise:
+            return _get_data(self._base_url, self._lang, 'description').level
+        else:
+            try:
+                return _get_data(self._base_url, self._lang, 'description').level
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except:
+                return 'Unknown'
+
+    @property
+    def status_meaning(self):
+        if self._raise:
+            return _get_data(self._base_url, self._lang, 'meaning').level
+        else:
+            try:
+                return _get_data(self._base_url, self._lang, 'meaning').level
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except:
+                return 'Unknown.'
 
     @property
     def status_meaning(self):
