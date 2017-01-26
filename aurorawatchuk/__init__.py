@@ -65,10 +65,10 @@ class AuroraWatchUK(object):
     @property
     def status_color(self):
         if self._raise:
-            return _get_data(self._base_url, self._lang, 'color').level
+            return self.descriptions[self.status.level]['color']
         else:
             try:
-                return _get_data(self._base_url, self._lang, 'color').level
+                return self.descriptions[self.status.level]['color']
             except (KeyboardInterrupt, SystemExit):
                 raise
             except:
@@ -77,10 +77,10 @@ class AuroraWatchUK(object):
     @property
     def status_description(self):
         if self._raise:
-            return _get_data(self._base_url, self._lang, 'description').level
+            return self.descriptions[self.status.level]['description']
         else:
             try:
-                return _get_data(self._base_url, self._lang, 'description').level
+                return self.descriptions[self.status.level]['description']
             except (KeyboardInterrupt, SystemExit):
                 raise
             except:
@@ -89,18 +89,14 @@ class AuroraWatchUK(object):
     @property
     def status_meaning(self):
         if self._raise:
-            return _get_data(self._base_url, self._lang, 'meaning').level
+            return self.descriptions[self.status.level]['meaning']
         else:
             try:
-                return _get_data(self._base_url, self._lang, 'meaning').level
+                return self.descriptions[self.status.level]['meaning']
             except (KeyboardInterrupt, SystemExit):
                 raise
             except:
                 return 'Unknown.'
-
-    @property
-    def status_meaning(self):
-        return self.descriptions[self.status.level]['meaning']
 
     @property
     def activity(self):
