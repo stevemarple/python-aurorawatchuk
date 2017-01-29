@@ -287,7 +287,7 @@ def _cache_status(base_url, lang):
         r = Status(expires,
                    site_status.attrib['status_id'],
                    datetime.datetime.strptime(xml_tree.find('updated').find('datetime').text,
-                                                           '%Y-%m-%dT%H:%M:%S+0000'),
+                                              '%Y-%m-%dT%H:%M:%S+0000'),
                    _parse_messages(xml_tree, lang))
         return r, expires
     except (KeyboardInterrupt, SystemExit):
@@ -417,7 +417,7 @@ def init(base_url):
                 _locks[base_url][k] = threading.RLock()
                 _expires[base_url][k] = 0
                 _data[base_url][k] = None
-                _permit_bg_update[base_url][k] = True #  Permit background updates
+                _permit_bg_update[base_url][k] = True  # Permit background updates
                 if use_disk_cache:
                     _cache_files[base_url][k] = _get_cache_filename(base_url, k)
                     if os.path.exists(_cache_files[base_url][k]):
@@ -462,9 +462,9 @@ _cache_files = {}
 
 # Each lock controls access to the corresponding _expires, _data and _permit_bg_update nested dictionary values
 _locks = {}
-_expires = {} # Holds expiry times from the HTTP(S) requests
-_data = {} # Holds the Python representation of the XML page
-_permit_bg_update = {} # Flags to indicate if the page can be fetched by a background thread
+_expires = {}           # Holds expiry times from the HTTP(S) requests
+_data = {}              # Holds the Python representation of the XML page
+_permit_bg_update = {}  # Flags to indicate if the page can be fetched by a background thread
 
 _min_time_left = dict(status=20,
                       descriptions=86400)

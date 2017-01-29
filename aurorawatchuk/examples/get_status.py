@@ -19,7 +19,6 @@ aurorawatchuk.user_agent = 'Python aurorawatchuk module (%s)' % os.path.basename
 aw = aurorawatchuk.AuroraWatchUK()
 
 
-
 # Print the current status level, and when it was updated.
 print('Current status level: ' + aw.status.level)
 print('Current status updated: ' + aw.status.updated.strftime('%Y-%m-%d %H:%M:%S'))
