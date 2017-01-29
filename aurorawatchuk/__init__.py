@@ -23,7 +23,7 @@ else:
 
 __author__ = 'Steve Marple'
 __version__ = '0.0.6'
-__license__ = 'PSF'
+__license__ = 'MIT'
 
 
 class AuroraWatchUK(object):

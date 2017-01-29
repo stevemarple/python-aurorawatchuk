@@ -8,6 +8,11 @@ import os
 import time
 
 
+__author__ = 'Steve Marple'
+__version__ = '0.0.6'
+__license__ = 'MIT'
+
+
 logger = logging.getLogger(__name__)
 # Set logging level to debug to that HTTP GETs are indicated
 logging.basicConfig(level=logging.DEBUG)
