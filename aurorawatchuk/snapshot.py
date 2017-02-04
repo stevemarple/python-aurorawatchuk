@@ -2,7 +2,7 @@ from aurorawatchuk import AuroraWatchUK
 
 
 __author__ = 'Steve Marple'
-__version__ = '0.0.8'
+__version__ = '0.0.9'
 __license__ = 'MIT'
 
 
