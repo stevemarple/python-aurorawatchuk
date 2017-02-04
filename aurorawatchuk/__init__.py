@@ -1,3 +1,5 @@
+"""Python interface to the AuroraWatch UK status API."""
+
 from atomiccreate import smart_open
 from collections import OrderedDict
 from copy import deepcopy
@@ -27,15 +29,28 @@ __license__ = 'MIT'
 
 
 class AuroraWatchUK(object):
+    """Object from which the current and recent AuroraWatch UK status, activity and descriptions can be obtained.
+
+    When the object is constructed ``base_url`` may be used to adjust the base URL of the AuroraWatch UK API,
+    for instance to select between HTTP and HTTPS transport. The language used for descriptions, messages etc.
+    can be adjusted with the ``lang`` parameter; only ``lang='en'`` is supported at present.
+
+    By default exceptions are raised when the status, activity or descriptions cannot be fetched from
+    AuroraWatch UK. In some limited cases unknown values can be returned instead of exceptions (primarily
+    when such information may be included in formatted strings). Call the constructor with ``raise_=False`` to
+    avoid exceptions, note the trailing underscore to avoid collision with the :keyword:`raise` keyword. When the
+    status is unknown the value retrieved from ``status_color`` returned can be set with the
+    ``unknown_status_color`` keyword."""
+
     def __init__(self,
                  base_url='http://aurorawatch-api.lancs.ac.uk/0.2/',
                  lang='en',
                  raise_=True,
-                 unknown_color='#777777'):
+                 unknown_status_color='#777777'):
         self._base_url = base_url
         self._lang = lang
         self._raise = raise_
-        self._unknown_color = unknown_color
+        self._unknown_color = unknown_status_color
         init(base_url)
 
     def _get_expires(self, name):
@@ -44,14 +59,25 @@ class AuroraWatchUK(object):
 
     @property
     def lang(self):
+        """Retrieves the selected language for messages, descriptions etc. from the API Type :class:`str`."""
         return self._lang
 
     @property
     def status(self):
+        """Retrieves the current status object. Type :class:`.Status`.
+
+        If the current status cannot be obtained accessing this property will generate an exception, regardless of the
+        constructor parameter ``raise_``."""
         return _get_data(self._base_url, self._lang, 'status')
 
     @property
     def status_level(self):
+        """Retrieves the current status level. Type :class:`str`.
+
+        If the :class:`.AuroraWatchUK` object was created with ``raise=True`` then accessing this property will
+         generate an exception if the current status cannot be obtained. However if it was created with
+         ``raise_=False`` then the status level will be returned as `unknown` if the current status cannot be
+         determined."""
         if self._raise:
             return _get_data(self._base_url, self._lang, 'status').level
         else:
@@ -64,6 +90,12 @@ class AuroraWatchUK(object):
 
     @property
     def status_color(self):
+        """Retrieves the current status color as a RGB string. Type :class:`str`.
+
+        If the :class:`.AuroraWatchUK` object was created with ``raise_=True`` then accessing this property will
+        generate an exception if the current status cannot be obtained. However if it was created with
+        ``raise_=False`` then ``unknown_status_color`` will be returned if the current status
+        cannot be determined."""
         if self._raise:
             return self.descriptions[self.status.level]['color']
         else:
@@ -76,6 +108,13 @@ class AuroraWatchUK(object):
 
     @property
     def status_description(self):
+        """Retrieves the description for the current alert status. Type :class:`str`.
+
+        If the :class:`.AuroraWatchUK` object was created with ``raise_=True`` then accessing this property will
+        generate an exception if the current description cannot be obtained. However if it was created with
+        ``raise_=False`` then ``'Unknown'`` will be returned.
+
+        Status descriptions are not terminated with a full stop."""
         if self._raise:
             return self.descriptions[self.status.level]['description']
         else:
@@ -88,6 +127,13 @@ class AuroraWatchUK(object):
 
     @property
     def status_meaning(self):
+        """The meaning of the current alert status. Type :class:`str`.
+
+        If the :class:`.AuroraWatchUK` object was created with ``raise_=True`` then accessing this property will
+        generate an exception if the current description cannot be obtained. However if it was created with
+        ``raise_=False`` then ``'Unknown.'`` will be returned.
+
+        The status meanings are terminated with a full stop."""
         if self._raise:
             return self.descriptions[self.status.level]['meaning']
         else:
@@ -100,22 +146,45 @@ class AuroraWatchUK(object):
 
     @property
     def activity(self):
+        """The current activity object. Type :class:`.Activity`.
+
+        If the current activity cannot be obtained accessing this property will generate an exception,
+        regardless of the constructor parameter ``raise_``."""
         return _get_data(self._base_url, self._lang, 'activity')
 
-    @property
-    def activity_expires(self):
-        return self._get_expires('activity')
+    # @property
+    # def activity_expires(self):
+    #     return self._get_expires('activity')
 
     @property
     def descriptions(self):
+        """Descriptions and meanings used in the AuroraWatch UK API. Type :class:`collections.OrderedDict`.
+
+        If the current activity cannot be obtained accessing this property will generate an exception,
+        regardless of the constructor parameter ``raise_``."""
         return _get_data(self._base_url, self._lang, 'descriptions')
 
-    @property
-    def descriptions_expires(self):
-        return self._get_expires('descriptions')
+    # @property
+    # def descriptions_expires(self):
+    #     return self._get_expires('descriptions')
 
 
 class Status(object):
+    """AuroraWatch UK object.
+
+    :param base_url: Base URL of the AuroraWatch UK API
+    :type base_url: str.
+    :param lang: Language to use for descriptions, messages etc. `lang` must be provided by the API.
+    :type lang: str
+    :param raise_: Raise exceptions on errors (note the trailing underscore to avoid collision with the
+        keyword `raise`).
+    :type raise_: bool
+    :param unknown_color: RGB color value for when status cannot be determined.
+    :type unknown_color: str
+    :return: An object from which the current AuroraWatch UK status, activity and descriptions can be obtained.
+    :rtype: :class:`.AuroraWatchUK`
+    """
+
     def __init__(self, expires, level, updated, messages):
         self._expires = expires
         self._level = level
@@ -124,23 +193,31 @@ class Status(object):
 
     @property
     def expires(self):
+        """Retrieves the expiry time, as seconds since epoch. Type :class:`float`."""
         return self._expires
 
     @property
     def level(self):
+        """The status level. Type :class:`str`."""
         return self._level
 
     @property
     def updated(self):
+        """The time status was last updated. Type :class:`datetime.datetime`."""
         return self._updated
 
     @property
     def messages(self):
+        """A list of currently active messages. May be empty."""
         return self._messages
 
 
 class Activity(object):
+    """An :class:`.Activity` object holds the current and recent AuroraWatch UK activity values."""
+
     def __init__(self, expires, thresholds, updated, activity_values, messages):
+        """Class constructor."""
+
         self._expires = expires
         self._thresholds = thresholds
         self._updated = updated
@@ -149,30 +226,48 @@ class Activity(object):
 
     @property
     def expires(self):
+        """The expiry time, as seconds since epoch. Type :class:`float`."""
         return self._expires
 
     @property
     def thresholds(self):
+        """The lower thresholds, in nanotesla (nT), for each activity level. Type :class:`collections.OrderedDict`."""
         return self._thresholds
 
     @property
     def updated(self):
+        """The time status was last updated. Type :class:`datetime.datetime`."""
         return self._updated
 
     @property
     def all(self):
+        """All activity values. Type :class:`list` of :class:`.ActivityValue` objects."""
         return self._activity_values
 
     @property
     def latest(self):
+        """The latest activity value available. Type :class:`.ActivityValue`."""
         return self._activity_values[-1]
 
     @property
     def messages(self):
+        """A list of currently active messages. May be empty."""
         return self._messages
 
 
 class ActivityValue(object):
+    """A single AuroraWatch UK activity value.
+
+    :param level: The status level.
+    :type level: str
+    :param datetime: The start time of the period for which the activity value applies. Activity values are
+        computed hourly.
+    :type datetime: datetime.datetime
+    :param value: The activity value, in units of nanotesla (nT).
+    :type value: float
+    :return: An object holding an AuroraWatch UK activity value and its related information.
+    :rtype: :class:`.ActivityValue`
+    """
     def __init__(self, level, datetime, value):
         self._level = level
         self._datetime = datetime
@@ -180,20 +275,25 @@ class ActivityValue(object):
 
     @property
     def level(self):
+        """The status level. Type :class:`str`."""
         return self._level
 
     @property
     def datetime(self):
+        """The start time of the period for which the activity value applies. Type :class:`datetime.datetime`.
+
+        Activity values are computed hourly."""
         return self._datetime
 
     @property
     def value(self):
+        """The activity value, in units of nanotesla (nT). Type :class:`float`."""
         return self._value
 
 
 def _get_cache_filename(base_url, name):
     # Incorporate protocol and host. Must remove any leading '/' from the HTTP(S) path since that causes
-    # os.path.join to disregrard any previous directory parts.
+    # os.path.join to disregard any previous directory parts.
     p = urlsplit(_urls[base_url][name])
     return os.path.join(cache_dir, p.scheme, p.netloc, *split_dirs(p.path.lstrip('/') + '.pck'))
 
@@ -386,7 +486,7 @@ def _parse_messages(xml_tree, lang):
         messages.append(mesg)
     return messages
 
-
+# Set up locks, URLs, and read in previously cached values.
 def init(base_url):
     global cache_dir
     global _urls
