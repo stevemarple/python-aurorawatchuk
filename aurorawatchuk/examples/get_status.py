@@ -38,23 +38,29 @@ for status_level in desc:
     print('    Meaning: ' + desc[status_level]['meaning'])
 
 
-print('----------------------------')
 # Take a snapshot of the AuroraWatch UK status. The information will not be updated
-aw_ss = aurorawatchuk.snapshot.AuroraWatchUK()
+aw_ss = aurorawatchuk.snapshot.AuroraWatchUK_SS()
 
 while True:
+    print('----------------------------')
     now = datetime.datetime.utcnow()
-    # Print the current status
-    print('{now:%Y-%m-%d %H:%M:%S}'.format(now=now))
-    print('Current status:   level={aw.status.level}    updated={aw.status.updated:%Y-%m-%d %H:%M:%S}'
-          .format(aw=aw))
 
     # Print the snapshot taken earlier
     print('Earlier snapshot: level={aw.status.level}    updated={aw.status.updated:%Y-%m-%d %H:%M:%S}'
           .format(aw=aw_ss))
 
-    # Print the latest status
+    # Print the current status
+    print('{now:%Y-%m-%d %H:%M:%S}'.format(now=now))
+    print('Current status:   level={aw.status.level}    updated={aw.status.updated:%Y-%m-%d %H:%M:%S}'
+          .format(aw=aw))
+
+    # Print the latest activity
     print('Latest activity:  activity={aw.activity.latest.value:.1f}  updated={aw.activity.updated:%Y-%m-%d %H:%M:%S}'
           .format(aw=aw))
 
+    # Print messages, take a copy of messages in the case number of messages changes
+    messages = aw.status.messages
+    for n in range(len(messages)):
+        print('Message #%d (priority=%s)' % (n, messages[n].priority))
+        print('    ' + messages[n].description)
     time.sleep(10)

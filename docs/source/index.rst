@@ -9,8 +9,24 @@ aurorawatchuk
 .. toctree::
    :maxdepth: 2
 
-.. automodule:: aurorawatchuk
+.. autoclass:: aurorawatchuk.AuroraWatchUK
    :members:
+
+.. autoclass:: aurorawatchuk.snapshot.AuroraWatchUK_SS
+   :members:
+
+.. autoclass:: aurorawatchuk.Activity
+   :members:
+
+.. autoclass:: aurorawatchuk.ActivityValue
+   :members:
+
+.. autoclass:: aurorawatchuk.Message
+   :members:
+
+.. autoclass:: aurorawatchuk.Status
+   :members:
+
 
 Indices and tables
 ==================

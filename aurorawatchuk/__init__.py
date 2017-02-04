@@ -29,9 +29,14 @@ __license__ = 'MIT'
 
 
 class AuroraWatchUK(object):
-    """Object from which the current and recent AuroraWatch UK status, activity and descriptions can be obtained.
+    """Class from which the current and recent AuroraWatch UK status, activity and descriptions can be obtained.
 
-    When the object is constructed ``base_url`` may be used to adjust the base URL of the AuroraWatch UK API,
+    The :class:`.AuroraWatchUK` class handles all network traffic with the AuroraWatch UK web service and automatically
+    updates as information fetched expires, preemptively if necessary from a background thread. This means successive
+    calls can and will change. Consider using the snapshot version of this class, :class:`.snapshot.AuroraWatchUK_SS`
+    which also features lazy evaluation and will make network calls only if required.
+
+    When the object is constructed ``base_url`` keyword may be used to adjust the base URL of the AuroraWatch UK API,
     for instance to select between HTTP and HTTPS transport. The language used for descriptions, messages etc.
     can be adjusted with the ``lang`` parameter; only ``lang='en'`` is supported at present.
 
@@ -170,20 +175,10 @@ class AuroraWatchUK(object):
 
 
 class Status(object):
-    """AuroraWatch UK object.
+    """AuroraWatch UK current status.
 
-    :param base_url: Base URL of the AuroraWatch UK API
-    :type base_url: str.
-    :param lang: Language to use for descriptions, messages etc. `lang` must be provided by the API.
-    :type lang: str
-    :param raise_: Raise exceptions on errors (note the trailing underscore to avoid collision with the
-        keyword `raise`).
-    :type raise_: bool
-    :param unknown_color: RGB color value for when status cannot be determined.
-    :type unknown_color: str
-    :return: An object from which the current AuroraWatch UK status, activity and descriptions can be obtained.
-    :rtype: :class:`.AuroraWatchUK`
-    """
+    If only a minimal set of information is required (status level and messages) this class should be preferred
+    over the :class:`.Activity` class as the network transfers are smaller."""
 
     def __init__(self, expires, level, updated, messages):
         self._expires = expires
@@ -198,22 +193,27 @@ class Status(object):
 
     @property
     def level(self):
-        """The status level. Type :class:`str`."""
+        """Retrieves the current status level. Type :class:`str`."""
         return self._level
 
     @property
     def updated(self):
-        """The time status was last updated. Type :class:`datetime.datetime`."""
+        """Retrieves the time status was last updated. Type :class:`datetime.datetime`."""
         return self._updated
 
     @property
     def messages(self):
-        """A list of currently active messages. May be empty."""
+        """Retrieves a list of currently active messages. Type :class:`.Message` or ``None``.
+
+        The list of messages may be empty."""
         return self._messages
 
 
 class Activity(object):
-    """An :class:`.Activity` object holds the current and recent AuroraWatch UK activity values."""
+    """Current and recent AuroraWatch UK activity values.
+
+     If only a minimal set of information is required (current status level and messages) then the :class:`.Status`
+     class should be preferred over this class as the network transfers are smaller."""
 
     def __init__(self, expires, thresholds, updated, activity_values, messages):
         """Class constructor."""
@@ -226,48 +226,42 @@ class Activity(object):
 
     @property
     def expires(self):
-        """The expiry time, as seconds since epoch. Type :class:`float`."""
+        """Retrieves the expiry time, as seconds since epoch. Type :class:`float`."""
         return self._expires
 
     @property
     def thresholds(self):
-        """The lower thresholds, in nanotesla (nT), for each activity level. Type :class:`collections.OrderedDict`."""
+        """Retrieves the lower thresholds for each activity level. Type :class:`collections.OrderedDict`.
+
+        The lower thresholds are given in units of nanotesla (nT). The activity must equal or exceed the lower
+        threshold, and not equal or exceed the lower threshold of the next status level."""
         return self._thresholds
 
     @property
     def updated(self):
-        """The time status was last updated. Type :class:`datetime.datetime`."""
+        """Retrieves the time the status was last updated. Type :class:`datetime.datetime`."""
         return self._updated
 
     @property
     def all(self):
-        """All activity values. Type :class:`list` of :class:`.ActivityValue` objects."""
+        """Retrieves all activity values. Type :class:`list` of :class:`.ActivityValue` objects."""
         return self._activity_values
 
     @property
     def latest(self):
-        """The latest activity value available. Type :class:`.ActivityValue`."""
+        """Retrieves the latest activity value available. Type :class:`.ActivityValue`."""
         return self._activity_values[-1]
 
     @property
     def messages(self):
-        """A list of currently active messages. May be empty."""
+        """Retrieves a list of currently active messages. Type :class:`.Message` or ``None``.
+
+        The list of messages may be empty."""
         return self._messages
 
 
 class ActivityValue(object):
-    """A single AuroraWatch UK activity value.
-
-    :param level: The status level.
-    :type level: str
-    :param datetime: The start time of the period for which the activity value applies. Activity values are
-        computed hourly.
-    :type datetime: datetime.datetime
-    :param value: The activity value, in units of nanotesla (nT).
-    :type value: float
-    :return: An object holding an AuroraWatch UK activity value and its related information.
-    :rtype: :class:`.ActivityValue`
-    """
+    """A single AuroraWatch UK activity value."""
     def __init__(self, level, datetime, value):
         self._level = level
         self._datetime = datetime
@@ -275,20 +269,69 @@ class ActivityValue(object):
 
     @property
     def level(self):
-        """The status level. Type :class:`str`."""
+        """Retrieves the status level. Type :class:`str`."""
         return self._level
 
     @property
     def datetime(self):
-        """The start time of the period for which the activity value applies. Type :class:`datetime.datetime`.
-
-        Activity values are computed hourly."""
+        """Retrieves the start time for the hourly activity value. Type :class:`datetime.datetime`."""
         return self._datetime
 
     @property
     def value(self):
-        """The activity value, in units of nanotesla (nT). Type :class:`float`."""
+        """Retrieves the activity value, in units of nanotesla (nT). Type :class:`float`.
+
+        The activity value is an unsigned scalar value."""
         return self._value
+
+
+class Message(object):
+    """An AuroraWatch UK message."""
+
+    def __init__(self, id_, priority, description, url, expires):
+        self._id = id_
+        self._priority = priority
+        self._description = description
+        self._url = url
+        self._expires = expires
+
+    @property
+    def id(self):
+        """Retrieves a unique identifier for the message. Type :class:`str`.
+
+        The identifier can be used to record which messages have been presented to a user and to hide any which
+        have been seen previously."""
+        return self._id
+
+    @property
+    def priority(self):
+        """Retrieves the priority level for a message. Type :class:`str`.
+
+        The priority indicates what action, if any, may be appropriate. A ``'high'`` priority suggests that an
+        alerting notification may be appropriate while a ``'low'`` priority suggests a silent notification may be
+        more appropriate. Test messages are indicated with the priority ``'test'``. Messages with unknown
+        priorities should be ignored."""
+        return self._priority
+
+    @property
+    def description(self):
+        """Retrieves the descriptive text of the message, in the selected language.  Type :class:`str`."""
+        return self._description
+
+    @property
+    def url(self):
+        """Retrieves an optional URL for the message. Type :class:`str` or ``None``.
+
+        The URL associated with the message, if one is present, otherwise ``None``."""
+        return self._url
+
+    @property
+    def expires(self):
+        """Retrieves the date and time the message expires. Type :class:`datetime.datetime`.
+
+        After the expiry time the message should not be displayed and any saved references (for
+        instance recording that the message has been shown to the user) can be discarded."""
+        return self._expires
 
 
 def _get_cache_filename(base_url, name):
@@ -428,7 +471,6 @@ def _cache_activity(base_url, lang):
                                           float(act_elem.find('value').text)))
 
         messages = _parse_messages(xml_tree, lang)
-
         return Activity(expires, thresholds, updated, activity, messages), expires
     except (KeyboardInterrupt, SystemExit):
         raise
@@ -474,17 +516,19 @@ def _cache_descriptions(base_url, lang):
 def _parse_messages(xml_tree, lang):
     messages = []
     for mesg_elem in xml_tree.findall('message'):
+        # Output only those messages whose description matches the required language
         desc_elem = mesg_elem.find("description[@lang='{lang}']".format(lang=lang))
-        if desc_elem:
-            mesg = {'id': mesg_elem.attrib['id'],
-                    'priority': mesg_elem.attrib['priority'],
-                    'description': desc_elem.text}
-        url_elem = mesg_elem.find('url')
-        if url_elem:
-            mesg['url'] = url_elem.text
-
-        messages.append(mesg)
+        expires = datetime.datetime.strptime(mesg_elem.find('expires').find('datetime').text,
+                                             '%Y-%m-%dT%H:%M:%S+0000')
+        if desc_elem is not None:
+            url_elem = mesg_elem.find('url')
+            messages.append(Message(mesg_elem.attrib['id'],
+                                    mesg_elem.attrib['priority'],
+                                    desc_elem.text,
+                                    url_elem.text if url_elem else None,
+                                    expires))
     return messages
+
 
 # Set up locks, URLs, and read in previously cached values.
 def init(base_url):
