@@ -1,15 +1,24 @@
-import aurorawatchuk as aw
+from aurorawatchuk import AuroraWatchUK
 
 
-class AuroraWatchUK(object):
+__author__ = 'Steve Marple'
+__version__ = '0.0.8'
+__license__ = 'MIT'
+
+
+class AuroraWatchUK_SS(object):
     """Take a snapshot of the AuroraWatch UK status.
 
-    This class mimics the behaviour of the aurorawatchuk.AuroraWatchUK class but its fields are evaluated just once,
-    at the time first requested. Thus the values it returns are snapshots of the status. This is useful
-    when the information may be required multiple times as it avoids the possibility that the status level
-    could change between uses. If the information is not required then no network traffic is generated."""
+    This class mimics the behaviour of the :class:`.aurorawatchuk.AuroraWatchUK` class but its fields are evaluated
+    just once and cached, at the time first requested. Thus the values it returns are snapshots of the ``status``,
+    ``activity`` and ``description`` fields. This is useful when the information may be required multiple times as
+    it avoids the possibility that the value could change between uses. If the information is not required then
+    no network traffic is generated.
+
+    For documentation see :class:`.aurorawatchuk.AuroraWatchUK`."""
+
     def __init__(self, *args, **kwargs):
-        object.__setattr__(self, '_awuk', aw.AuroraWatchUK(*args, **kwargs))
+        object.__setattr__(self, '_awuk', AuroraWatchUK(*args, **kwargs))
         object.__setattr__(self, '_fields', {})
 
     def __getattr__(self, item):
@@ -30,4 +39,3 @@ class AuroraWatchUK(object):
             raise AttributeError
         else:
             return object.__delattr__(self, item)
-
