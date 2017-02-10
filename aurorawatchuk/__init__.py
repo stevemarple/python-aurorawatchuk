@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 import traceback
+
 if sys.version_info[0] >= 3:
     # noinspection PyCompatibility
     from urllib.parse import urlsplit
@@ -32,13 +33,17 @@ class AuroraWatchUK(object):
     """Class from which the current and recent AuroraWatch UK status, activity and descriptions can be obtained.
 
     The :class:`.AuroraWatchUK` class handles all network traffic with the AuroraWatch UK web service and automatically
-    updates as information fetched expires, preemptively if necessary from a background thread. This means successive
-    calls can and will change. Consider using the snapshot version of this class, :class:`.snapshot.AuroraWatchUK_SS`
-    which also features lazy evaluation and will make network calls only if required.
+    updates as information fetched expires. For time-critical applications where network delays are undesirable (for
+    example the :py:mod:`cameralogger` module) preemptive updates can be requested; if enabled a background thread
+    will initiate an update shortly before the expiry time is reached.
 
-    When the object is constructed ``base_url`` keyword may be used to adjust the base URL of the AuroraWatch UK API,
+    Be aware that updates can occur at any time, and may occur between calls for related information. Consider using
+    the snapshot version of this class, :class:`.snapshot.AuroraWatchUK_SS` which also features lazy evaluation and
+    will make network calls only if required.
+
+    When the object is constructed ``base_url`` may be used to adjust the base URL of the AuroraWatch UK API,
     for instance to select between HTTP and HTTPS transport. The language used for descriptions, messages etc.
-    can be adjusted with the ``lang`` parameter; only ``lang='en'`` is supported at present.
+    can be selected with the ``lang`` parameter; only ``lang='en'`` is supported at present.
 
     By default exceptions are raised when the status, activity or descriptions cannot be fetched from
     AuroraWatch UK. In some limited cases unknown values can be returned instead of exceptions (primarily
@@ -51,16 +56,68 @@ class AuroraWatchUK(object):
                  base_url='http://aurorawatch-api.lancs.ac.uk/0.2/',
                  lang='en',
                  raise_=True,
-                 unknown_status_color='#777777'):
+                 unknown_status_color='#777777',
+                 preemptive=False):
         self._base_url = base_url
         self._lang = lang
         self._raise = raise_
         self._unknown_color = unknown_status_color
+        self._preemptive = preemptive
         init(base_url)
 
     def _get_expires(self, name):
         with _locks[self._base_url][name]:
             return _expires[self._base_url][name]
+
+    def _get_data(self, name, _forced_update=False):
+        with _locks[self._base_url][name]:
+            data = deepcopy(_data[self._base_url][name])
+            expires = _expires[self._base_url][name]
+            # Only attempt a preemptive update for this location if this instance wants it AND no-one else is already
+            # doing a preemptive update.
+            preemptive = _permit_preemptive[self._base_url][name] and self._preemptive
+        now = time.time()
+        time_left = expires - now
+        if time_left > 0 and not _forced_update:
+            if use_disk_cache:
+                if name in _min_time_left and time_left < _min_time_left[name] and preemptive:
+                    try:
+                        # Proactively update cache by forcing data to be fetched
+                        logger.debug('starting new thread to update %s', name)
+                        thread = threading.Thread(target=self._get_data,
+                                                  args=(name, True))
+                        thread.start()
+                        with _locks[self._base_url][name]:
+                            # Don't permit any more background updates for this URL
+                            _permit_preemptive[self._base_url][name] = False
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
+                    except:
+                        logger.error('could not proactively update %s', name)
+                        logger.debug(traceback.format_exc())
+                        raise
+
+            return data
+
+        else:
+            try:
+                data, expires = globals()['_cache_' + name](self._base_url, self._lang)
+                _save_to_cache(self._base_url, name, data, expires)
+                if name == 'activity':
+                    # This is a superset of the status information so update the cache for that too
+                    _save_to_cache(self._base_url,
+                                   'status',
+                                   Status(expires, data.latest.level, data.updated, data.messages),
+                                   expires)
+                return data
+
+            except (KeyboardInterrupt, SystemExit):
+                raise
+
+            except:
+                logger.error('could not get AuroraWatch UK status')
+                logger.debug(traceback.format_exc())
+                raise
 
     @property
     def lang(self):
@@ -73,7 +130,7 @@ class AuroraWatchUK(object):
 
         If the current status cannot be obtained accessing this property will generate an exception, regardless of the
         constructor parameter ``raise_``."""
-        return _get_data(self._base_url, self._lang, 'status')
+        return self._get_data('status')
 
     @property
     def status_level(self):
@@ -84,10 +141,10 @@ class AuroraWatchUK(object):
          ``raise_=False`` then the status level will be returned as `unknown` if the current status cannot be
          determined."""
         if self._raise:
-            return _get_data(self._base_url, self._lang, 'status').level
+            return self._get_data('status').level
         else:
             try:
-                return _get_data(self._base_url, self._lang, 'status').level
+                return self._get_data('status').level
             except (KeyboardInterrupt, SystemExit):
                 raise
             except:
@@ -155,7 +212,7 @@ class AuroraWatchUK(object):
 
         If the current activity cannot be obtained accessing this property will generate an exception,
         regardless of the constructor parameter ``raise_``."""
-        return _get_data(self._base_url, self._lang, 'activity')
+        return self._get_data('activity')
 
     # @property
     # def activity_expires(self):
@@ -167,7 +224,7 @@ class AuroraWatchUK(object):
 
         If the current activity cannot be obtained accessing this property will generate an exception,
         regardless of the constructor parameter ``raise_``."""
-        return _get_data(self._base_url, self._lang, 'descriptions')
+        return self._get_data('descriptions')
 
     # @property
     # def descriptions_expires(self):
@@ -352,55 +409,6 @@ def _load_from_disk_cache(base_url, name):
         return pickle.load(fh)
 
 
-def _get_data(base_url, lang, name, bg_update=False):
-    with _locks[base_url][name]:
-        data = deepcopy(_data[base_url][name])
-        expires = _expires[base_url][name]
-        permit_bg_update = _permit_bg_update[base_url][name]
-    now = time.time()
-    time_left = expires - now
-    if time_left > 0 and not bg_update:
-        if use_disk_cache:
-            if name in _min_time_left and time_left < _min_time_left[name] and permit_bg_update:
-                try:
-                    # Proactively update cache by forcing data to be fetched
-                    logger.debug('starting new thread to update %s', name)
-                    thread = threading.Thread(target=_get_data,
-                                              args=(base_url, lang, name, True))
-                    thread.start()
-                    with _locks[base_url][name]:
-                        # Don't permit any more background updates for this URL
-                        _permit_bg_update[base_url][name] = False
-                except (KeyboardInterrupt, SystemExit):
-                    raise
-                except:
-                    logger.error('could not proactively update %s', name)
-                    logger.debug(traceback.format_exc())
-                    raise
-
-        return data
-
-    else:
-        try:
-            data, expires = globals()['_cache_' + name](base_url, lang)
-            _save_to_cache(base_url, name, data, expires)
-            if name == 'activity':
-                # This is a superset of the status information so update the cache for that too
-                _save_to_cache(base_url,
-                               'status',
-                               Status(expires, data.latest.level, data.updated, data.messages),
-                               expires)
-            return data
-
-        except (KeyboardInterrupt, SystemExit):
-            raise
-
-        except:
-            logger.error('could not get AuroraWatch UK status')
-            logger.debug(traceback.format_exc())
-            raise
-
-
 def _save_to_cache(base_url, name, data, expires):
     if use_disk_cache:
         with smart_open(_cache_files[base_url][name], 'wb') as fh:
@@ -409,7 +417,7 @@ def _save_to_cache(base_url, name, data, expires):
     with _locks[base_url][name]:
         _data[base_url][name] = deepcopy(data)
         _expires[base_url][name] = expires
-        _permit_bg_update[base_url][name] = True  # Re-enable background updates for this URL
+        _permit_preemptive[base_url][name] = True  # Re-enable background updates for this URL
 
 
 def _cache_status(base_url, lang):
@@ -556,12 +564,12 @@ def init(base_url):
             _locks[base_url] = {}
             _expires[base_url] = {}
             _data[base_url] = {}
-            _permit_bg_update[base_url] = {}
+            _permit_preemptive[base_url] = {}
             for k, v in six.iteritems(_urls[base_url]):
                 _locks[base_url][k] = threading.RLock()
                 _expires[base_url][k] = 0
                 _data[base_url][k] = None
-                _permit_bg_update[base_url][k] = True  # Permit background updates
+                _permit_preemptive[base_url][k] = True  # Permit background updates
                 if use_disk_cache:
                     _cache_files[base_url][k] = _get_cache_filename(base_url, k)
                     if os.path.exists(_cache_files[base_url][k]):
@@ -604,11 +612,11 @@ cache_dir = None
 _urls = {}
 _cache_files = {}
 
-# Each lock controls access to the corresponding _expires, _data and _permit_bg_update nested dictionary values
+# Each lock controls access to the corresponding _expires, _data and _permit_preemptive nested dictionary values
 _locks = {}
-_expires = {}           # Holds expiry times from the HTTP(S) requests
-_data = {}              # Holds the Python representation of the XML page
-_permit_bg_update = {}  # Flags to indicate if the page can be fetched by a background thread
+_expires = {}            # Holds expiry times from the HTTP(S) requests
+_data = {}               # Holds the Python representation of the XML page
+_permit_preemptive = {}  # Flags to indicate if the page can be fetched by a background thread
 
 _min_time_left = dict(activity=20,
                       status=20,
