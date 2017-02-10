@@ -610,5 +610,6 @@ _expires = {}           # Holds expiry times from the HTTP(S) requests
 _data = {}              # Holds the Python representation of the XML page
 _permit_bg_update = {}  # Flags to indicate if the page can be fetched by a background thread
 
-_min_time_left = dict(status=20,
-                      descriptions=86400)
+_min_time_left = dict(activity=20,
+                      status=20,
+                      descriptions=3600)
