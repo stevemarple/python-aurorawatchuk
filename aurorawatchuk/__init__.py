@@ -34,12 +34,12 @@ class AuroraWatchUK(object):
 
     The :class:`.AuroraWatchUK` class handles all network traffic with the AuroraWatch UK web service and automatically
     updates as information fetched expires. For time-critical applications where network delays are undesirable (for
-    example the :py:mod:`cameralogger` module) preemptive updates can be requested; if enabled a background thread
+    example the :mod:`cameralogger` module) preemptive updates can be requested; if enabled a background thread
     will initiate an update shortly before the expiry time is reached.
 
     Be aware that updates can occur at any time, and may occur between calls for related information. Consider using
-    the snapshot version of this class, :class:`.snapshot.AuroraWatchUK_SS` which also features lazy evaluation and
-    will make network calls only if required.
+    the snapshot version of this class, :class:`aurorawatchuk.snapshot.AuroraWatchUK_SS`, which also features lazy
+    evaluation and will make network calls only if required.
 
     When the object is constructed ``base_url`` may be used to adjust the base URL of the AuroraWatch UK API,
     for instance to select between HTTP and HTTPS transport. The language used for descriptions, messages etc.
