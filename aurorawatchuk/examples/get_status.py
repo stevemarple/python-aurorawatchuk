@@ -49,16 +49,21 @@ while True:
     print('Earlier snapshot: level={aw.status.level}    updated={aw.status.updated:%Y-%m-%d %H:%M:%S}'
           .format(aw=aw_ss))
 
-    # Print the current status
+    # Print the current time
     print('{now:%Y-%m-%d %H:%M:%S}'.format(now=now))
-    print('Current status:   level={aw.status.level}    updated={aw.status.updated:%Y-%m-%d %H:%M:%S}'
-          .format(aw=aw))
 
     # Print the latest activity
     print('Latest activity:  activity={aw.activity.latest.value:.1f}  updated={aw.activity.updated:%Y-%m-%d %H:%M:%S}'
           .format(aw=aw))
 
-    # Print messages, take a copy of messages in the case number of messages changes
+    # Print the current status. Note that the status information is a subset of activity so it is generally more
+    # efficient to request activity data before status (particularly when preemptive updates are needed).
+    print('Current status:   level={aw.status.level}    updated={aw.status.updated:%Y-%m-%d %H:%M:%S}'
+          .format(aw=aw))
+
+    # Print messages
+    # IMPORTANT: take a copy of messages as otherwise the number of messages could change between len() and loop
+    # iterations.
     messages = aw.status.messages
     for n in range(len(messages)):
         print('Message #%d (priority=%s)' % (n, messages[n].priority))
