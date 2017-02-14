@@ -1,4 +1,4 @@
-from aurorawatchuk import AuroraWatchUK
+import aurorawatchuk
 
 
 __author__ = 'Steve Marple'
@@ -18,7 +18,7 @@ class AuroraWatchUK_SS(object):
     For documentation see :class:`.aurorawatchuk.AuroraWatchUK`."""
 
     def __init__(self, *args, **kwargs):
-        object.__setattr__(self, '_awuk', AuroraWatchUK(*args, **kwargs))
+        object.__setattr__(self, '_awuk', aurorawatchuk.AuroraWatchUK(*args, **kwargs))
         object.__setattr__(self, '_fields', {})
 
     def __getattr__(self, item):
