@@ -11,6 +11,7 @@ import os
 import pickle
 import requests
 import six
+from six.moves.configparser import SafeConfigParser
 import sys
 import threading
 import time
@@ -538,6 +539,19 @@ def _parse_messages(xml_tree, lang):
     return messages
 
 
+def _get_cache_dir(config_filename):
+    config = SafeConfigParser()
+    files_read = config.read(config_filename)
+    if config_filename not in files_read:
+        logger.warn('could not read config file %s', config_filename)
+    for f in files_read:
+        logger.debug('read config file %s', f)
+    if config.has_option(__package__, 'cache_dir'):
+        return config.get(__package__, 'cache_dir')
+    else:
+        return None
+
+
 # Set up locks, URLs, and read in previously cached values.
 def init(base_url):
     global cache_dir
@@ -551,7 +565,12 @@ def init(base_url):
         if use_disk_cache:
             if not cache_dir:
                 appdirs = importlib.import_module('appdirs')
-                cache_dir = appdirs.user_cache_dir(__name__)
+                config_filename = os.path.join(appdirs.user_config_dir(__package__), 'config.ini')
+                if os.path.exists(config_filename):
+                    cache_dir = _get_cache_dir(config_filename)
+
+            if not cache_dir:
+                    cache_dir = appdirs.user_cache_dir(__package__)
 
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
