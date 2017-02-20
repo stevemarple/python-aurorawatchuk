@@ -30,6 +30,9 @@ __version__ = '0.1.4'
 __license__ = 'MIT'
 
 
+default_base_url = 'http://aurorawatch-api.lancs.ac.uk/0.2/'
+
+
 class AuroraWatchUK(object):
     """Class from which the current and recent AuroraWatch UK status, activity and descriptions can be obtained.
 
@@ -54,17 +57,17 @@ class AuroraWatchUK(object):
     ``unknown_status_color`` keyword."""
 
     def __init__(self,
-                 base_url='http://aurorawatch-api.lancs.ac.uk/0.2/',
+                 base_url=default_base_url,
                  lang='en',
                  raise_=True,
                  unknown_status_color='#777777',
                  preemptive=False):
-        self._base_url = base_url
+        self._base_url = base_url or default_base_url
         self._lang = lang
         self._raise = raise_
         self._unknown_color = unknown_status_color
         self._preemptive = preemptive
-        init(base_url)
+        init(self._base_url)
 
     def _get_expires(self, name):
         with _locks[self._base_url][name]:
