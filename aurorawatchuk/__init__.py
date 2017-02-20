@@ -576,7 +576,9 @@ def init(base_url):
                     cache_dir = appdirs.user_cache_dir(__package__)
 
             if not os.path.exists(cache_dir):
-                os.makedirs(cache_dir)
+                os.makedirs(cache_dir, mode=0700)
+            else:
+                os.chmod(cache_dir, mode=0700)
 
         if base_url not in _urls:
             _urls[base_url] = dict(status=base_url + 'status/current-status.xml',
