@@ -63,6 +63,8 @@ class AuroraWatchUK(object):
                  unknown_status_color='#777777',
                  preemptive=False):
         self._base_url = base_url or default_base_url
+        if not self._base_url.endswith('/'):
+            self._base_url += '/'
         self._lang = lang
         self._raise = raise_
         self._unknown_color = unknown_status_color
@@ -424,21 +426,30 @@ def _save_to_cache(base_url, name, data, expires):
         _permit_preemptive[base_url][name] = True  # Re-enable background updates for this URL
 
 
-def _cache_status(base_url, lang):
-    logger.debug('caching status')
-    url = _urls[base_url]['status']
+def _read_document(url):
+    if url.startswith('file:'):
+        with open(url.replace('file:', '', 1)) as fh:
+            return fh.read().encode('UTF-8'), round(time.time() + 180)
+
     req = requests.get(url, headers={'user-agent': user_agent})
     if req.status_code != 200:
         raise Exception('could not access %s' % url)
+    expires = time.mktime(datetime.datetime.strptime(req.headers['Expires'],
+                                                     '%a, %d %b %Y %H:%M:%S %Z').utctimetuple())
+    return req.text.encode('UTF-8'), expires
+
+
+def _cache_status(base_url, lang):
+    logger.debug('caching status')
+    url = _urls[base_url]['status']
+    doc, expires = _read_document(url)
 
     try:
-        xml_tree = etree.fromstring(req.text.encode('UTF-8'))
+        xml_tree = etree.fromstring(doc)
         if xml_tree.tag != 'current_status':
             raise Exception('incorrect root element')
 
         site_status = xml_tree.find('site_status')
-        expires = time.mktime(datetime.datetime.strptime(req.headers['Expires'],
-                                                         '%a, %d %b %Y %H:%M:%S %Z').utctimetuple())
         r = Status(expires,
                    site_status.attrib['status_id'],
                    datetime.datetime.strptime(xml_tree.find('updated').find('datetime').text,
@@ -456,14 +467,10 @@ def _cache_status(base_url, lang):
 def _cache_activity(base_url, lang):
     logger.debug('caching activity')
     url = _urls[base_url]['activity']
-    req = requests.get(url, headers={'user-agent': user_agent})
-    if req.status_code != 200:
-        raise Exception('could not access %s' % url)
+    doc, expires = _read_document(url)
 
     try:
-        expires = time.mktime(datetime.datetime.strptime(req.headers['Expires'],
-                                                         '%a, %d %b %Y %H:%M:%S %Z').utctimetuple())
-        xml_tree = etree.fromstring(req.text.encode('UTF-8'))
+        xml_tree = etree.fromstring(doc)
         if xml_tree.tag != 'site_activity':
             raise Exception('incorrect root element')
 
@@ -495,17 +502,13 @@ def _cache_activity(base_url, lang):
 def _cache_descriptions(base_url, lang):
     logger.debug('caching descriptions')
     url = _urls[base_url]['descriptions']
-    req = requests.get(url, headers={'user-agent': user_agent})
-    if req.status_code != 200:
-        raise Exception('could not access %s' % url)
+    doc, expires = _read_document(url)
 
     try:
-        xml_tree = etree.fromstring(req.text.encode('UTF-8'))
+        xml_tree = etree.fromstring(doc)
         if xml_tree.tag != 'status_list':
             raise Exception('incorrect root element')
 
-        expires = time.mktime(datetime.datetime.strptime(req.headers['Expires'],
-                                                         '%a, %d %b %Y %H:%M:%S %Z').utctimetuple())
         d = OrderedDict()
         d.expires = expires
         for status_elem in xml_tree.findall('status'):
