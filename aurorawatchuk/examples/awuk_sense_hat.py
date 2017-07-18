@@ -8,6 +8,11 @@ import time
 
 logger = logging.getLogger(__name__)
 sense = SenseHat()
+
+# The disk cache can be disabled (and rely on memory cache) when the AuroraWatch UK status is fetched from the same
+# program run.
+aurorawatchuk.use_disk_cache = False
+
 awuk = aurorawatchuk.AuroraWatchUK()
 
 # Convert RGB color strings (#RRGGBB) to tuples
