@@ -1,2 +1,4 @@
-include *.rst LICENSE \
-	aurorawatchuk/examples/*.py aurorawatchuk/examples/*.ipynb
+include README.rst
+include AUTHORS.rst
+include LICENSE
+include aurorawatchuk/examples/*.py
